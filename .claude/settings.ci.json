@@ -1,0 +1,51 @@
+{
+  "disableAllHooks": true,
+  "permissions": {
+    "allow": [
+      "Edit(modules/*/tests/*.tftest.hcl)",
+      "Edit(.agent/report.json)",
+      "Agent(tf-reviewer)",
+      "Skill(tf-change-analysis)",
+      "Skill(tf-test-author)",
+      "Skill(tf-review)",
+      "Skill(tf-agent-report)"
+    ],
+    "deny": [
+      "Bash",
+      "WebFetch",
+      "WebSearch",
+      "NotebookEdit",
+      "Edit(*.tf)",
+      "Edit(*.tfvars)",
+      "Edit(*.sh)",
+      "Edit(*.lock.hcl)",
+      "Edit(.claude/**)",
+      "Edit(.github/**)",
+      "Edit(.agent/changes.json)",
+      "Edit(.agent/changes.patch)",
+      "Agent(general-purpose)",
+      "Agent(Explore)",
+      "Agent(Plan)",
+      "Agent(claude)",
+      "Agent(claude-code-guide)",
+      "Agent(statusline-setup)",
+      "Skill(batch)",
+      "Skill(claude-api)",
+      "Skill(code-review)",
+      "Skill(dataviz)",
+      "Skill(debug)",
+      "Skill(deep-research)",
+      "Skill(doctor)",
+      "Skill(fewer-permission-prompts)",
+      "Skill(loop)",
+      "Skill(plugin-authoring)",
+      "Skill(run)",
+      "Skill(run-skill-generator)",
+      "Skill(schedule)",
+      "Skill(simplify)",
+      "Skill(update-config)",
+      "Skill(verify)",
+      "Skill(workflow-authoring)"
+    ]
+  }
+}

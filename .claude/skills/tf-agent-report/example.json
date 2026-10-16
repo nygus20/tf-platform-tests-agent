@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "modules": [
+    {
+      "path": "modules/function-app",
+      "decision": "created",
+      "reason": "The module had no tests. New runs pin HTTPS only, TLS 1.2, the managed identity, the build revision app setting and the storage role assignment scope. The external build-info script is overridden so it never runs in tests.",
+      "test_files": ["modules/function-app/tests/main.tftest.hcl"],
+      "runs": [
+        "app_is_https_only_with_tls_1_2",
+        "uses_system_assigned_identity",
+        "build_revision_comes_from_build_info",
+        "grants_runtime_role_on_the_given_storage_account"
+      ]
+    },
+    {
+      "path": "modules/network",
+      "decision": "unchanged",
+      "reason": "Only a description changed. The existing runs creates_one_subnet_and_nsg_per_key and names_follow_the_convention still cover the module.",
+      "test_files": ["modules/network/tests/main.tftest.hcl"],
+      "runs": ["creates_one_subnet_and_nsg_per_key", "names_follow_the_convention", "rejects_invalid_address_space"]
+    }
+  ],
+  "findings": [
+    {
+      "id": "function-app/ftps-allowed",
+      "file": "modules/function-app/main.tf",
+      "line": 32,
+      "severity": "medium",
+      "category": "security",
+      "confidence": "high",
+      "title": "FTP deployment is allowed on the function app",
+      "detail": "site_config sets ftps_state to AllAllowed, so plain FTP and FTPS uploads are both accepted. Credentials and code can travel unencrypted.",
+      "suggestion": "Set ftps_state to Disabled, or FtpsOnly if FTP deployment is really needed."
+    }
+  ],
+  "notes": []
+}
