@@ -112,6 +112,11 @@ def render(results, guard, report, changes, review, *, repo: str, sha: str, run_
         out.append(f"The agent did not run: {safe_text(skip_reason, 200)}.")
     elif not guard:
         out.append("The agent ran but produced no output the guard could read.")
+    elif (agent.get("status") == "missing" and not guard.get("accepted_files")
+          and not guard.get("violations")):
+        out.append("The agent produced no result. The agent job log says why, "
+                   "for example a missing `ANTHROPIC_API_KEY` secret. Existing tests still ran.")
+        out.append("")
     else:
         status = agent.get("status", "missing")
         cost = agent.get("total_cost_usd")
@@ -135,7 +140,8 @@ def render(results, guard, report, changes, review, *, repo: str, sha: str, run_
         out.append("")
         if guard.get("ok"):
             n = len(guard.get("accepted_files", []))
-            out.append(f"Guard: passed. {n} test file(s) accepted.")
+            out.append(f"Guard: passed. {n} test file(s) accepted." if n else
+                       "Guard: passed. The agent changed no test files.")
         else:
             out.append("Guard: **rejected the agent's output.** Nothing it wrote was tested or committed.")
             for v in guard.get("violations", [])[:20]:
