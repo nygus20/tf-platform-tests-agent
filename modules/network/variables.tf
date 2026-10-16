@@ -1,5 +1,5 @@
 variable "name" {
-  description = "Name suffix used for the network resources."
+  description = "Name suffix used for all network resources."
   type        = string
 }
 
