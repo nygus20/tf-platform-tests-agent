@@ -424,3 +424,13 @@ def test_guard_tolerates_truncated_result(tmp_path, monkeypatch):
     (d / "result.json").write_text("")
     code, g = run_guard(tmp_path, monkeypatch, d)
     assert g["agent"]["status"] == "missing" and code == 0
+
+
+def test_render_explains_an_agent_that_never_ran():
+    guard_doc = {"ok": True, "accepted_files": [], "violations": [], "dropped_findings": [],
+                 "agent": {"status": "missing", "permission_denials": 0, "evidence": {}}}
+    results = {"overall": "pass", "terraform_version": "1.16.6", "head_sha": "a" * 40, "applied_files": [],
+               "modules": [], "stacks": []}
+    body = render_summary.render(results, guard_doc, None, {}, None, repo="o/r", sha="a" * 40,
+                                 run_url="", commit=None, skip_reason="")
+    assert "ANTHROPIC_API_KEY" in body and "status `missing`" not in body
