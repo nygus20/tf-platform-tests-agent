@@ -2,7 +2,8 @@
 #
 # Trust boundaries (see SOLUTION.md):
 #   detect   no secrets, read-only          maps changed files to modules
-#   agent    ANTHROPIC_API_KEY, read-only   runs Claude Code only; never terraform or repository scripts
+#   agent    LLM key, read-only             runs Claude Code only; never terraform or repository scripts
+#            (OPENROUTER_API_KEY if set, otherwise ANTHROPIC_API_KEY)
 #   guard    no secrets, read-only          rejects any agent output outside modules/*/tests/*.tftest.hcl
 #   test     no secrets, read-only          runs terraform test; its result is the verdict
 #   publish  GITHUB_TOKEN with write        commits accepted tests, posts comments and a check run
@@ -108,7 +109,10 @@ jobs:
     permissions:
       contents: read
     env:
-      HAS_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+      # OpenRouter is used when its key is set, otherwise the Anthropic API.
+      # Only these booleans are job-wide; the keys themselves reach one step.
+      HAS_KEY: ${{ secrets.OPENROUTER_API_KEY != '' || secrets.ANTHROPIC_API_KEY != '' }}
+      PROVIDER: ${{ secrets.OPENROUTER_API_KEY != '' && 'openrouter' || 'anthropic' }}
     steps:
       - name: Check out agent configuration from the base commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -166,14 +170,15 @@ jobs:
 
       - name: Report a missing API key
         if: env.HAS_KEY != 'true'
-        run: echo "::error::The ANTHROPIC_API_KEY secret is not set, so the agent cannot run."
+        run: echo "::error::Neither OPENROUTER_API_KEY nor ANTHROPIC_API_KEY is set, so the agent cannot run."
 
       - name: Run the agent
         id: claude
         if: env.HAS_KEY == 'true'
         working-directory: ${{ runner.temp }}/work
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENROUTER_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
           DISABLE_AUTOUPDATER: "1"
           CLAUDE_CODE_DISABLE_CLAUDE_MDS: "1"
@@ -183,6 +188,20 @@ jobs:
           MCP_CONFIG: ${{ github.workspace }}/trusted/.claude/mcp-empty.json
         run: |
           set +e
+          # The agent files name the aliases sonnet and opus; pin them per provider.
+          if [ "$PROVIDER" = openrouter ]; then
+            export ANTHROPIC_BASE_URL="https://openrouter.ai/api"
+            export ANTHROPIC_AUTH_TOKEN="$OPENROUTER_KEY"
+            export ANTHROPIC_API_KEY=""
+            export ANTHROPIC_DEFAULT_SONNET_MODEL="anthropic/claude-sonnet-5.5[1m]"
+            export ANTHROPIC_DEFAULT_OPUS_MODEL="anthropic/claude-opus-5.5[1m]"
+          else
+            export ANTHROPIC_API_KEY="$ANTHROPIC_KEY"
+            export ANTHROPIC_DEFAULT_SONNET_MODEL="claude-sonnet-5-5"
+            export ANTHROPIC_DEFAULT_OPUS_MODEL="claude-opus-5-5"
+          fi
+          unset OPENROUTER_KEY ANTHROPIC_KEY
+          echo "provider: $PROVIDER"
           "$CLAUDE_BIN" -p "Run the Terraform test procedure for the modules in .agent/changes.json." \
             --agent tf-test-agent \
             --setting-sources project \
@@ -219,6 +238,7 @@ jobs:
               done
             if [ -f .agent/report.json ]; then cp .agent/report.json "$out/report.json"; fi
           fi
+          echo "$PROVIDER" > "$out/provider.txt"
           if [ -f "$RUNNER_TEMP/transcript.jsonl" ]; then
             cp "$RUNNER_TEMP/transcript.jsonl" "$out/"
             jq -c 'select(.type == "result")' "$out/transcript.jsonl" | tail -n 1 > "$out/result.json" || true

@@ -127,9 +127,10 @@ def render(results, guard, report, changes, review, *, repo: str, sha: str, run_
         if dur is not None:
             bits.append(f"{dur / 1000:.0f} s")
         if cost is not None:
-            bits.append(f"${cost:.2f}")
+            bits.append(f"about ${cost:.2f} at Anthropic list prices")
         bits.append(f"{agent.get('permission_denials', 0)} denied tool calls")
-        out.append("Run: " + ", ".join(bits) + ".")
+        provider = {"anthropic": "the Anthropic API", "openrouter": "OpenRouter"}.get(agent.get("provider") or "")
+        out.append("Run: " + ", ".join(bits) + (f", via {provider}." if provider else "."))
         ev = agent.get("evidence") or {}
         if ev.get("skills"):
             out.append("Skills invoked (from the transcript): " + ", ".join(f"`{s}`" for s in ev["skills"]) + ".")

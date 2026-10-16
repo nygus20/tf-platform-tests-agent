@@ -2,7 +2,7 @@
 name: tf-reviewer
 description: Read-only reviewer of Terraform modules and stacks for a pull request. Returns findings as JSON for the test agent. Use when the test agent needs review findings.
 tools: Read, Glob, Grep, Skill
-model: claude-opus-5-5
+model: opus
 effort: high
 maxTurns: 25
 background: false

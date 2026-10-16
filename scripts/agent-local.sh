@@ -6,8 +6,10 @@
 # Usage: scripts/agent-local.sh [--base <ref>] [--backfill] [--apply] [--skip-tests]
 #
 # Needs: git, python 3.11+ with jsonschema (or the repo .venv), node 22+ and npm,
-# terraform 1.16.6 on PATH (or TERRAFORM=/path/to/terraform), and a Claude Code
-# login or ANTHROPIC_API_KEY. Set CLAUDE_BIN to use a different claude binary.
+# terraform 1.16.6 on PATH (or TERRAFORM=/path/to/terraform), and credentials:
+# OPENROUTER_API_KEY in the environment uses OpenRouter, as CI does when that
+# secret is set; otherwise ANTHROPIC_API_KEY or your Claude Code login is used.
+# Set CLAUDE_BIN to use a different claude binary.
 set -euo pipefail
 
 base="origin/main"
@@ -81,6 +83,20 @@ git -C "$work" -c user.name=agent -c user.email=agent@localhost -c core.autocrlf
   export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 DISABLE_AUTOUPDATER=1 \
          CLAUDE_CODE_DISABLE_CLAUDE_MDS=1 CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 \
          CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1
+  # Same provider choice and model pins as CI.
+  if [ -n "${OPENROUTER_API_KEY:-}" ]; then
+    export ANTHROPIC_BASE_URL="https://openrouter.ai/api"
+    export ANTHROPIC_AUTH_TOKEN="$OPENROUTER_API_KEY"
+    export ANTHROPIC_API_KEY=""
+    export ANTHROPIC_DEFAULT_SONNET_MODEL="anthropic/claude-sonnet-5.5[1m]"
+    export ANTHROPIC_DEFAULT_OPUS_MODEL="anthropic/claude-opus-5.5[1m]"
+    echo openrouter > "$run_dir/provider.txt"
+  else
+    export ANTHROPIC_DEFAULT_SONNET_MODEL="claude-sonnet-5-5"
+    export ANTHROPIC_DEFAULT_OPUS_MODEL="claude-opus-5-5"
+    echo anthropic > "$run_dir/provider.txt"
+  fi
+  unset OPENROUTER_API_KEY
   set +e
   "$CLAUDE_BIN" -p "Run the Terraform test procedure for the modules in .agent/changes.json." \
     --agent tf-test-agent \
@@ -108,7 +124,7 @@ mkdir -p "$out/files"
     while IFS= read -r -d '' f; do mkdir -p "$out/files/$(dirname "$f")"; cp -P "$f" "$out/files/$f"; done
   if [ -f .agent/report.json ]; then cp .agent/report.json "$out/report.json"; fi
 )
-cp "$run_dir/transcript.jsonl" "$out/"
+cp "$run_dir/transcript.jsonl" "$run_dir/provider.txt" "$out/"
 "$py" - "$(native "$out/transcript.jsonl")" "$(native "$out/result.json")" <<'PY'
 import json, sys
 last = None
