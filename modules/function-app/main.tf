@@ -29,7 +29,7 @@ resource "azurerm_linux_function_app" "this" {
 
   site_config {
     minimum_tls_version = "1.2"
-    ftps_state          = "AllAllowed"
+    ftps_state          = var.ftps_state
 
     application_stack {
       python_version = var.python_version

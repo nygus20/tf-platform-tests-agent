@@ -46,3 +46,14 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "ftps_state" {
+  description = "FTP deployment setting of the app: Disabled, FtpsOnly or AllAllowed."
+  type        = string
+  default     = "Disabled"
+
+  validation {
+    condition     = contains(["Disabled", "FtpsOnly", "AllAllowed"], var.ftps_state)
+    error_message = "The ftps_state must be Disabled, FtpsOnly or AllAllowed."
+  }
+}
