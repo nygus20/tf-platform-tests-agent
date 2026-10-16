@@ -2,7 +2,7 @@
 name: tf-test-agent
 description: Writes or updates `terraform test` files for the Terraform modules a pull request changes, asks tf-reviewer for findings, and writes a JSON report. Never edits infrastructure code.
 tools: Read, Glob, Grep, Write, Edit, Agent(tf-reviewer), Skill
-model: claude-sonnet-5-5
+model: sonnet
 effort: medium
 maxTurns: 60
 ---

@@ -9,7 +9,7 @@ pull_request (opened, synchronize, reopened, labeled)
   |
   detect   no secrets, read-only    changed files -> modules and stacks, agent eligibility
   |
-  agent    API key, read-only       Claude Code in a stripped work directory; no terraform, no repo scripts
+  agent    LLM key, read-only       Claude Code in a stripped work directory; no terraform, no repo scripts
   |
   guard    no secrets, read-only    accepts only modules/<m>/tests/*.tftest.hcl, validates the report
   |
@@ -21,7 +21,7 @@ pull_request (opened, synchronize, reopened, labeled)
 | Job | Permissions | Secrets | Runs |
 |---|---|---|---|
 | detect | `contents: read`, `pull-requests: read` | none | `detect_changes.py` from the base commit |
-| agent | `contents: read` | `ANTHROPIC_API_KEY`, only in the one step that runs `claude` | `npm ci --ignore-scripts`, inline shell, `claude` |
+| agent | `contents: read` | `OPENROUTER_API_KEY` or `ANTHROPIC_API_KEY`, only in the one step that runs `claude` | `npm ci --ignore-scripts`, inline shell, `claude` |
 | guard | `contents: read` | none | `guard.py` from the base commit |
 | test | `contents: read` | none | `terraform`, `run_tests.py` from the base commit |
 | publish | `contents: write`, `pull-requests: write`, `checks: write` | `GITHUB_TOKEN` only | git, `publish.py` and `render_summary.py` from the base commit |
@@ -32,8 +32,8 @@ The workflow file is `.github/workflows/terraform-tests.yml`. `scripts-ci.yml` u
 
 | Path | What it is | Used when |
 |---|---|---|
-| `.claude/agents/tf-test-agent.md` | Main agent. Sonnet 5.5, medium effort. Tools: Read, Glob, Grep, Write, Edit, `Agent(tf-reviewer)`, Skill. | Started with `claude -p --agent tf-test-agent` |
-| `.claude/agents/tf-reviewer.md` | Read-only reviewer subagent. Opus 5.5, high effort. | Spawned once per run by the main agent |
+| `.claude/agents/tf-test-agent.md` | Main agent. `model: sonnet` (pinned to Sonnet 5.5 by the workflow), medium effort. Tools: Read, Glob, Grep, Write, Edit, `Agent(tf-reviewer)`, Skill. | Started with `claude -p --agent tf-test-agent` |
+| `.claude/agents/tf-reviewer.md` | Read-only reviewer subagent. `model: opus` (pinned to Opus 5.5), high effort. | Spawned once per run by the main agent |
 | `.claude/skills/tf-change-analysis/` | Decides create, update, unchanged or skipped per module from the diff and existing tests | Step 2 |
 | `.claude/skills/tf-test-author/` | Conventions, a template, and `reference.md`: how the mocked provider really behaves, each rule checked against Terraform 1.16.6 | Step 3 |
 | `.claude/skills/tf-review/` | What makes a useful finding, plus an Azure checklist | Inside the reviewer |
@@ -61,6 +61,8 @@ The skills are invoked on demand through the Skill tool, not preloaded. The work
 | The agent sees no PR title, body or comments | They are the cheapest prompt-injection channel, and the diff says what changed | The agent cannot use the author's stated intent |
 | Tests are committed even when they fail | A failing test that pins a security setting the PR weakened is the most useful output | A red PR until a person decides |
 | Pinned Claude Code via `package-lock.json`, installed with `--ignore-scripts` | Integrity hashes, and no package script runs next to the key | Version bumps go through Dependabot |
+| Agents name the aliases `sonnet` and `opus`; the workflow pins them per provider | The same agent files run on the Anthropic API or through OpenRouter, and model upgrades are one line in the workflow | Running the agent interactively without the workflow's variables gets Claude Code's current default for each alias |
+| OpenRouter when `OPENROUTER_API_KEY` is set, otherwise the Anthropic API | OpenRouter keys carry their own credit limit, which caps what a leaked key can spend | A third party sees the code, and Claude Code is only guaranteed to work when Anthropic serves the requests, so the OpenRouter account pins Anthropic as the provider |
 
 ## Security model
 
@@ -70,7 +72,7 @@ The skills are invoked on demand through the Skill tool, not preloaded. The work
 | Instruction files in the PR (`CLAUDE.md`, `AGENTS.md`, `.claude/`, `.mcp.json`) | Deleted from the work directory before the agent starts. Agent config is copied from the base commit. `CLAUDE_CODE_DISABLE_CLAUDE_MDS=1`, `--strict-mcp-config` with an empty config, `disableAllHooks`. |
 | Agent writes outside its scope | `--permission-mode dontAsk` with an allow list of `Edit(modules/*/tests/*.tftest.hcl)` and `Edit(.agent/report.json)`. Then the guard checks every changed path, status, size, encoding and content. Then publish refuses to commit anything else. |
 | Test files that execute code | The guard rejects `module` blocks in runs and real `provider` blocks, and requires an `override_data` for every `data "external"` in the module. Without that override, a test run executes the script, which was verified. |
-| Secret exfiltration | The key exists only in one step of one job, which has a read-only token and no tool that can read environment variables. |
+| Secret exfiltration | The key exists only in one step of one job, which has a read-only token and no tool that can read environment variables. The key is capped: an OpenRouter key has its own credit limit, and an Anthropic key belongs to a workspace with a monthly spend limit. |
 | Fork pull requests | No secrets and a read-only token. `agent`, `guard` and `publish` are skipped. `test` runs the PR's own tests and writes the job summary. To use the agent, a maintainer pushes the branch into the repository. |
 | Runaway cost or time | Path filters, `--max-turns 60`, `--max-budget-usd 3`, job timeouts, one concurrency group per PR with cancel-in-progress |
 | A person with write access edits the workflow | Out of scope for the workflow itself. Use branch protection, CODEOWNERS on `.github/` and `.claude/`, and a spend-limited API key in its own workspace. |
@@ -81,7 +83,9 @@ Several controls were added because a test run showed the documentation was not 
 
 Prerequisites:
 - A GitHub repository with Actions enabled and the labels `tf-agent:skip` and `tf-agent:backfill`.
-- Repository secret `ANTHROPIC_API_KEY`, ideally from a dedicated workspace with a spend limit.
+- One repository secret, under Settings, Secrets and variables, Actions:
+  - `OPENROUTER_API_KEY`: an OpenRouter key with a credit limit, with Anthropic pinned as the provider in the OpenRouter account. Used when present.
+  - or `ANTHROPIC_API_KEY`: a key from a dedicated Anthropic Console workspace with a monthly spend limit.
 - Settings, Actions, General: workflow permissions "Read repository contents", and "Allow GitHub Actions to create and approve pull requests" off. Each job asks for what it needs.
 - Branch protection on `main` requiring the `terraform-test` check.
 - No cloud credentials. Nothing talks to Azure.
@@ -89,7 +93,7 @@ Prerequisites:
 Use:
 - Open a pull request that changes `modules/**` or `stacks/**`. The workflow runs on open, push and reopen.
 - Add `tf-agent:backfill` to make the agent consider every module, or `tf-agent:skip` to run the tests without the agent.
-- Locally: `scripts/agent-local.sh --base origin/main` runs the same work directory, flags, guard, tests and summary. It needs Terraform 1.16.6, Node 22, Python with `jsonschema`, and a Claude Code login or API key. Add `--apply` to copy accepted tests into your working tree.
+- Locally: `scripts/agent-local.sh --base origin/main` runs the same work directory, flags, guard, tests and summary. It needs Terraform 1.16.6, Node 22, Python with `jsonschema`, and `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY` or a Claude Code login. Add `--apply` to copy accepted tests into your working tree.
 - Script tests: `python -m pytest .github/scripts/tests`.
 
 ## Example run
@@ -102,7 +106,7 @@ Use:
 
 It overrode `data.external.build_info`, so the build script never runs in tests. The tests still pass with the script deleted. It spawned `tf-reviewer`, which used `tf-review`, then wrote the report with `tf-agent-report`.
 
-**Results.** `terraform test`: 9 passed, 0 failed. The guard accepted 1 file. The run took 19 turns, 94 seconds and $0.38 on Sonnet 5.5 plus Opus 5.5.
+**Results.** `terraform test`: 9 passed, 0 failed. The guard accepted 1 file. The run took 19 turns, 94 seconds and about $0.38 on Sonnet 5.5 plus Opus 5.5, through the Anthropic API.
 
 **Findings for reviewers.**
 - `high`: the Elastic Premium app has no VNet integration while its runtime storage denies public access.
@@ -160,6 +164,7 @@ They cannot show:
 - Inline comments only land on lines in the diff. Other findings are listed in the summary with links.
 - Jobs do not rerun on the agent's own commit. The check run carries the result there.
 - A full-repository backfill costs several times a normal run.
+- The cost in the PR comment is Claude Code's estimate at Anthropic list prices. Through OpenRouter, the account balance is the real figure.
 
 ## With many more modules, teams or repositories
 

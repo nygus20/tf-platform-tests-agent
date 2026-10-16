@@ -434,3 +434,13 @@ def test_render_explains_an_agent_that_never_ran():
     body = render_summary.render(results, guard_doc, None, {}, None, repo="o/r", sha="a" * 40,
                                  run_url="", commit=None, skip_reason="")
     assert "ANTHROPIC_API_KEY" in body and "status `missing`" not in body
+
+
+def test_guard_records_provider_and_render_names_it(tmp_path, monkeypatch):
+    d = agent_dir(tmp_path, {TEST_PATH: ("A", GOOD_TEST)}, report_for())
+    (d / "provider.txt").write_text("openrouter\n")
+    _, g = run_guard(tmp_path, monkeypatch, d)
+    assert g["agent"]["provider"] == "openrouter"
+    body = render_summary.render(None, g, None, {}, None, repo="o/r", sha="a" * 40,
+                                 run_url="", commit=None, skip_reason="")
+    assert "via OpenRouter" in body and "at Anthropic list prices" in body

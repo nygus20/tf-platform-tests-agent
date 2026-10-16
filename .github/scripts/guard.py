@@ -223,6 +223,9 @@ def main() -> int:
         except ValueError as exc:
             report = {"_unparseable": str(exc)[:200]}
     agent["evidence"] = read_transcript(agent_dir / "transcript.jsonl")
+    provider_file = agent_dir / "provider.txt"
+    provider = provider_file.read_text(encoding="utf-8").strip() if provider_file.is_file() else ""
+    agent["provider"] = provider if provider in ("anthropic", "openrouter") else None
 
     file_violations, accepted = check_files(agent_dir, allowed_modules, head)
     report_violations: list[str] = []
