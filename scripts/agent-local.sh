@@ -71,6 +71,7 @@ cp -R .claude/agents .claude/skills "$work/.claude/"
 cp .github/schemas/report.schema.json "$work/.claude/skills/tf-agent-report/"
 cp "$run_dir/changes/changes.json" "$run_dir/changes/changes.patch" "$work/.agent/"
 git -C "$work" init -q
+git -C "$work" config core.autocrlf false
 git -C "$work" add -A
 git -C "$work" -c user.name=agent -c user.email=agent@localhost -c core.autocrlf=false commit -qm baseline
 

@@ -84,12 +84,16 @@ def render(results, guard, report, changes, review, *, repo: str, sha: str, run_
         out.append("|---|---|---|---|")
         for f in findings:
             where = blob_link(repo, sha, f["file"], f["line"], f.get("end_line"))
-            mark = "yes" if f["id"] in inline else "no, outside the diff"
+            if review is None:
+                mark = "not posted"
+            else:
+                mark = "yes" if f["id"] in inline else "no, outside the diff"
             out.append(f"| {f['severity']} | {where} | {safe_text(f['title'], 120)} | {mark} |")
         out.append("")
         outside = [f for f in findings if f["id"] not in inline]
         if outside:
-            out.append("<details><summary>Findings outside the diff</summary>")
+            label = "Finding details" if review is None else "Findings outside the diff"
+            out.append(f"<details><summary>{label}</summary>")
             out.append("")
             for f in outside:
                 out.append(f"- **{safe_text(f['title'], 120)}** ({f['severity']}, {f['category']}, "
