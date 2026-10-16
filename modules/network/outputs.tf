@@ -8,3 +8,4 @@ output "subnet_ids" {
   value       = { for key, subnet in azurerm_subnet.this : key => subnet.id }
 }
 # smoke 1
+# smoke 2
