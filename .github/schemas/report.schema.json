@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/nygus20/tf-platform-tests-agent/.github/schemas/report.schema.json",
+  "title": "Terraform test agent report",
+  "description": "What the agent decided per module and what it wants reviewers to know. Produced by the agent as structured output, validated by the guard, rendered by scripts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "modules", "findings", "notes"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "modules": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "decision", "reason", "test_files", "runs"],
+        "properties": {
+          "path": { "type": "string", "pattern": "^modules/[a-z0-9][a-z0-9-]*$" },
+          "decision": { "enum": ["created", "updated", "unchanged", "skipped"] },
+          "reason": { "type": "string", "minLength": 1, "maxLength": 600 },
+          "test_files": {
+            "type": "array",
+            "maxItems": 10,
+            "items": { "type": "string", "pattern": "^modules/[a-z0-9][a-z0-9-]*/tests/[A-Za-z0-9][A-Za-z0-9_-]*\\.tftest\\.hcl$" }
+          },
+          "runs": {
+            "type": "array",
+            "maxItems": 100,
+            "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,79}$" }
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "maxItems": 40,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "file", "line", "severity", "category", "confidence", "title", "detail", "suggestion"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,40}/[a-z0-9][a-z0-9-]{0,60}$" },
+          "file": { "type": "string", "pattern": "^(modules|stacks)/[a-z0-9][a-z0-9-]*/[A-Za-z0-9_./-]+$", "maxLength": 200 },
+          "line": { "type": "integer", "minimum": 1, "maximum": 100000 },
+          "end_line": { "type": "integer", "minimum": 1, "maximum": 100000 },
+          "severity": { "enum": ["high", "medium", "low", "info"] },
+          "category": { "enum": ["security", "reliability", "correctness", "cost", "maintainability", "testability"] },
+          "confidence": { "enum": ["high", "medium", "low"] },
+          "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "detail": { "type": "string", "minLength": 1, "maxLength": 800 },
+          "suggestion": { "type": "string", "maxLength": 500 }
+        }
+      }
+    },
+    "notes": {
+      "type": "array",
+      "maxItems": 5,
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    }
+  }
+}

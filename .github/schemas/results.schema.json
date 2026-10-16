@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/nygus20/tf-platform-tests-agent/.github/schemas/results.schema.json",
+  "title": "Terraform test results",
+  "description": "Produced only by run_tests.py from terraform's own JSON output. The agent never writes this.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "terraform_version", "head_sha", "overall", "modules", "stacks", "applied_files"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "terraform_version": { "type": "string" },
+    "head_sha": { "type": "string" },
+    "overall": { "enum": ["pass", "fail", "error"] },
+    "applied_files": { "type": "array", "items": { "type": "string" } },
+    "modules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "status", "fmt_ok", "init_ok", "runs", "messages", "duration_s"],
+        "properties": {
+          "path": { "type": "string" },
+          "status": { "enum": ["pass", "fail", "error", "no-tests"] },
+          "fmt_ok": { "type": "boolean" },
+          "init_ok": { "type": "boolean" },
+          "duration_s": { "type": "number" },
+          "messages": { "type": "array", "items": { "type": "string" } },
+          "runs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["file", "name", "status", "message"],
+              "properties": {
+                "file": { "type": "string" },
+                "name": { "type": "string" },
+                "status": { "enum": ["pass", "fail", "error", "skip"] },
+                "message": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "stacks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "validate_ok", "messages"],
+        "properties": {
+          "path": { "type": "string" },
+          "validate_ok": { "type": "boolean" },
+          "messages": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

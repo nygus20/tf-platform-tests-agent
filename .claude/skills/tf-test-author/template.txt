@@ -1,0 +1,27 @@
+# Tests for modules/<module>. Mocked azurerm provider: no credentials, no infrastructure.
+mock_provider "azurerm" {}
+
+variables {
+  name                = "<valid-azure-name>"
+  resource_group_name = "rg-test"
+  location            = "westeurope"
+}
+
+run "<expectation_in_snake_case>" {
+  command = plan
+
+  assert {
+    condition     = <resource>.<name>.<argument> == <expected>
+    error_message = "<What must be true, as a full sentence.>"
+  }
+}
+
+run "rejects_<invalid_input>" {
+  command = plan
+
+  variables {
+    <variable> = <invalid value>
+  }
+
+  expect_failures = [var.<variable>]
+}

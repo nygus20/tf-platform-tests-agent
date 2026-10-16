@@ -1,0 +1,8 @@
+{
+  "name": "tf-test-agent-runtime",
+  "private": true,
+  "description": "Pins the Claude Code CLI used by the terraform-tests workflow. Install with npm ci.",
+  "dependencies": {
+    "@anthropic-ai/claude-code": "2.1.301"
+  }
+}
